@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar CRM</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.0/firebase-
+app.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.0/firebase-
+database.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-
+serif; background: #f5f5f5; padding: 20px; }
+.container { max-width: 1200px; margin: 0 auto; }
+.header { background: white; padding: 20px; border-radius: 8px; margin-
+bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.header h1 { color: #333; margin-bottom: 10px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,
+1fr)); gap: 15px; margin-top: 15px; }
+.stat-card { background: #f9f9f9; padding: 15px; border-radius: 6px; text-
+align: center; }
+.stat-value { font-size: 24px; font-weight: bold; color: #007bff; }
+.stat-label { font-size: 12px; color: #999; margin-top: 5px; }
+.board { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,
+1fr)); gap: 20px; margin-bottom: 30px; }
+.stage { background: white; padding: 20px; border-radius: 8px; box-shadow:
+0 1px 3px rgba(0,0,0,0.1); }
+.stage-title { font-weight: bold; color: #333; margin-bottom: 15px; padding-
+bottom: 10px; border-bottom: 2px solid #007bff; }
+.lead-card { background: #f9f9f9; padding: 15px; border-radius: 6px; margin-
+bottom: 10px; cursor: pointer; border-left: 4px solid #007bff; transition: all 0.2s; }
+.lead-card:hover { background: #e8f4ff; transform: translateX(5px); }
+.lead-name { font-weight: bold; color: #333; }
+.lead-phone { font-size: 12px; color: #666; margin-top: 5px; }
+.lead-value { font-size: 12px; color: #007bff; font-weight: bold; margin-top:
+5px; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height:
+100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-
+content: center; }
+.modal.show { display: flex; }
+.modal-content { background: white; padding: 30px; border-radius: 8px;
+width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+.modal-header { font-size: 20px; font-weight: bold; margin-bottom: 20px;
+color: #333; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; font-size: 12px; font-weight: bold; color:
+#666; margin-bottom: 5px; }
+.form-group input, .form-group textarea, .form-group select { width: 100%;
+padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; }
+.form-group textarea { resize: vertical; }
+.button-group { display: flex; gap: 10px; margin-top: 20px; }
+button { padding: 10px 20px; border: 1px solid #007bff; background: #007bff;
+color: white; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all
+0.2s; }
+button:hover { background: #0056b3; }
+button.secondary { background: white; color: #007bff; border: 1px solid
+#007bff; }
+button.secondary:hover { background: #f0f7ff; }
+.close-btn { position: absolute; top: 20px; right: 20px; background: none;
+border: none; font-size: 24px; cursor: pointer; color: #999; }
+.add-lead-btn { background: #28a745; border-color: #28a745; margin-
+bottom: 20px; }
+.add-lead-btn:hover { background: #218838; }
+.lead-notes { background: #f9f9f9; padding: 10px; border-radius: 4px;
+margin-top: 15px; font-size: 12px; }
+.note-item { padding: 8px; background: white; border-left: 3px solid #ffc107;
+margin-bottom: 8px; border-radius: 2px; }
+.note-time { font-size: 10px; color: #999; }
+.generate-msg-btn { background: #17a2b8; border-color: #17a2b8; margin-
+top: 10px; }
+.generate-msg-btn:hover { background: #138496; }
+.ai-message { background: #e7f3ff; padding: 10px; border-radius: 4px;
+margin-top: 10px; border-left: 3px solid #17a2b8; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1> Solar CRM Pipeline</h1>
+<div class="stats">
+<div class="stat-card">
+<div class="stat-value" id="total-leads">0</div>
+<div class="stat-label">Total Leads</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="pipeline-value">$0</div>
+<div class="stat-label">Pipeline Value</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="closed-deals">0</div>
+<div class="stat-label">Closed Deals</div>
+</div>
+<div class="stat-card">
+<div class="stat-value" id="close-rate">0%</div>
+<div class="stat-label">Close Rate</div>
+</div>
+</div>
+</div>
+<button class="add-lead-btn" onclick="openAddModal()">+ Add Lead</
+button>
+<div class="board">
+<div class="stage">
+<div class="stage-title">New Lead</div>
+<div id="stage-new"></div>
+</div>
+<div class="stage">
+<div class="stage-title">Contacted</div>
+<div id="stage-contacted"></div>
+</div>
+<div class="stage">
+<div class="stage-title">Qualified</div>
+<div id="stage-qualified"></div>
+</div>
+<div class="stage">
+<div class="stage-title">Proposal Sent</div>
+<div id="stage-proposal"></div>
+</div>
+<div class="stage">
+<div class="stage-title">Closed</div>
+<div id="stage-closed"></div>
+</div>
+</div>
+</div>
+<div id="leadModal" class="modal">
+<div class="modal-content">
+<button class="close-btn" onclick="closeModal()">&times;</button>
+<div class="modal-header" id="modalTitle">Add New Lead</div>
+<div class="form-group">
+<label>Name</label>
+<input type="text" id="leadName" placeholder="Customer name">
+</div>
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="leadPhone" placeholder="(555) 123-4567">
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" id="leadEmail"
+placeholder="customer@email.com">
+</div>
+<div class="form-group">
+<label>Address</label>
+<input type="text" id="leadAddress" placeholder="123 Main St, City,
+ST">
+</div>
+<div class="form-group">
+<label>Roof Type</label>
+<select id="leadRoof">
+<option value="">Select roof type</option>
+<option value="asphalt">Asphalt Shingles</option>
+<option value="metal">Metal</option>
+<option value="tile">Tile</option>
+<option value="flat">Flat</option>
+</select>
+</div>
+<div class="form-group">
+<label>Monthly Usage (kWh)</label>
+<input type="number" id="leadUsage" placeholder="1000">
+</div>
+<div class="form-group">
+<label>Lead Source</label>
+<select id="leadSource">
+<option value="">Select source</option>
+<option value="referral">Referral</option>
+<option value="website">Website</option>
+<option value="ad">Advertisement</option>
+<option value="cold-call">Cold Call</option>
+</select>
+</div>
+<div class="form-group">
+<label>Estimated Value ($)</label>
+<input type="number" id="leadValue" placeholder="5000">
+</div>
+<div class="form-group">
+<label>Stage</label>
+<select id="leadStage">
+<option value="new">New Lead</option>
+<option value="contacted">Contacted</option>
+<option value="qualified">Qualified</option>
+<option value="proposal">Proposal Sent</option>
+<option value="closed">Closed</option>
+</select>
+</div>
+<div id="notesSection" style="display:none;">
+<div class="form-group">
+<label>Add Note</label>
+<textarea id="noteText" placeholder="Add a note..." rows="3"></
+textarea>
+</div>
+</div>
+<div class="lead-notes" id="notesList"></div>
+<div id="aiSection" style="display:none;">
+<button class="generate-msg-btn"
+onclick="generateAIMessage()">Generate Follow-up Message</button>
+<div id="aiMessage"></div>
+</div>
+<div class="button-group">
+<button onclick="saveLead()">Save Lead</button>
+<button class="secondary" onclick="closeModal()">Cancel</button>
+<button class="secondary" id="deleteBtn" onclick="deleteLead()"
+style="display:none; margin-left: auto;">Delete</button>
+</div>
+</div>
+</div>
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyC-GggSObyiOEOpQfje5UMy7N7d32_EFSc",
+authDomain: "solar-crm-6d2ae.firebaseapp.com",
+databaseURL: "https://solar-crm-6d2ae-default-rtdb.firebaseio.com",
+projectId: "solar-crm-6d2ae",
+storageBucket: "solar-crm-6d2ae.firebasestorage.app",
+messagingSenderId: "1004265926431",
+appId: "1:1004265926431:web:7d2245a01f35a477f0ca2a",
+measurementId: "G-2KN6CWZBFV"
+};
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+let currentLeadId = null;
+let leads = {};
+function loadLeads() {
+database.ref('leads').on('value', (snapshot) => {
+leads = snapshot×val() || {};
+renderBoard();
+updateStats();
+});
+}
+function renderBoard() {
+const stages = ['new', 'contacted', 'qualified', 'proposal', 'closed'];
+stages.forEach(stage => {
+const container = document×getElementById(`stage-${stage}`);
+container×innerHTML = '';
+Object.entries(leads).forEach(([id, lead]) => {
+if (lead.stage === stage) {
+const card = document×createElement('div');
+card×className = 'lead-card';
+card×innerHTML = `
+<div class="lead-name">${lead.name}</div>
+<div class="lead-phone">${lead.phone}</div>
+<div class="lead-value">$${lead.value || 0}</div>
+`;
+card×onclick = () => openEditModal(id);
+container.appendChild(card);
+}
+});
+});
+}
+function updateStats() {
+let total = Object×keys(leads)×length;
+let pipeline = Object.values(leads).reduce((sum, lead) => sum +
+(parseInt(lead.value) || 0), 0);
+let closed = Object.values(leads).filter(l => l.stage === 'closed').length;
+let closeRate = total > 0 ? Math.round((closed / total) * 100) : 0;
+document.getElementById('total-leads').textContent = total;
+document.getElementById('pipeline-value').textContent = '$' +
+pipeline.toLocaleString();
+document.getElementById('closed-deals').textContent = closed;
+document.getElementById('close-rate').textContent = closeRate + '%';
+}
+function openAddModal() {
+currentLeadId = null;
+document.getElementById('modalTitle').textContent = 'Add New Lead';
+document.getElementById('leadName').value = '';
+document.getElementById('leadPhone').value = '';
+document.getElementById('leadEmail').value = '';
+document.getElementById('leadAddress').value = '';
+document.getElementById('leadRoof').value = '';
+document.getElementById('leadUsage').value = '';
+document.getElementById('leadSource').value = '';
+document.getElementById('leadValue').value = '';
+document.getElementById('leadStage').value = 'new';
+document.getElementById('notesSection').style.display = 'none';
+document.getElementById('aiSection').style.display = 'none';
+document.getElementById('deleteBtn').style.display = 'none';
+document.getElementById('leadModal').classList.add('show');
+}
+function openEditModal(id) {
+currentLeadId = id;
+const lead = leads[id];
+document.getElementById('modalTitle').textContent = 'Edit Lead';
+document.getElementById('leadName').value = lead.name;
+document.getElementById('leadPhone').value = lead.phone;
+document.getElementById('leadEmail').value = lead.email;
+document.getElementById('leadAddress').value = lead.address;
+document.getElementById('leadRoof').value = lead.roof;
+document.getElementById('leadUsage').value = lead.usage;
+document.getElementById('leadSource').value = lead
